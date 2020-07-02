@@ -1,9 +1,13 @@
 # convert2YOLO
 The purpose of this code is to convert from object detection datasets to YOLO format.
 
-python main.py --datasets [bdd100k/aihub] --mode [parse/convert/both] --copyDir [copy] --datasetDir [C:\\data\\bdd100k] --manipastFile [manipast.txt]
-
-## Common data structure
+## how to use
+1. convert format.
+    python main.py --datasets [bdd100k/aihub] --mode [parse/convert/both] --copyDir [copy] --datasetDir [C:\\data\\bdd100k] --manipastFile [manipast.txt]
+2. show the images.
+    python show.py --imgDir [C:\\data\\bdd100k] --saveDir [C:\\data\\save] --random 5
+    
+#### Common data structure
 {
     "imageName" :
                 {
