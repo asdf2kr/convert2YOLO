@@ -6,6 +6,9 @@ The purpose of this code is to convert from object detection datasets to YOLO fo
     python main.py --datasets [bdd100k/aihub] --mode [parse/convert/both] --copyDir [copy] --datasetDir [C:\\data\\bdd100k] --manipastFile [manipast.txt]
 2. show the images.
     python show.py --imgDir [C:\\data\\bdd100k] --saveDir [C:\\data\\save] --random 5
+3. make_border
+    python make_border.py --imgDir [C:\\data\\bdd100k] --saveDir [C:\\data\\bdd100k\\augm] 
+    
     
 #### Common data structure
 {
