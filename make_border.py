@@ -13,11 +13,11 @@ def main():
     parser = argparse.ArgumentParser(description='Convert from datasets (COCO, COCO_YOLO, UA-DETRAC, MOT2020, Bdd100k, AIHub, CrowdHuman) to YOLO format.')
     parser.add_argument('--imgDir', type=str, help='directory of images.', default='./copy')
     parser.add_argument('--saveDir', type=str, help='directory of images.', default='./augmentation')
-
+    parser.add_argument('--manipastFile', type=str, help='manipast file', default="manipast.txt")
     config = parser.parse_args()
 
+    manipast = ""
     files = os.listdir(config.imgDir)
-
     if not os.path.exists(config.saveDir):
         os.makedirs(config.saveDir)
 
@@ -74,9 +74,13 @@ def main():
                 with open(os.path.join(config.saveDir, fileName + '-border.txt'), 'w+') as f:
                     f.write(writeStr2)
                 cv2.imwrite(os.path.join(config.saveDir, fileName + '-border' + fextension), dst)
-            progressCnt += 1
-            printProgress(progressCnt, len(files), ' Data-augmentation Progress: ', 'Complete')
+                manipast += os.path.join(config.saveDir, fileName + '-border' + fextension) + '\n'
 
+        progressCnt += 1
+        printProgress(progressCnt, len(files), ' Data-augmentation Progress: ', 'Complete')
+
+    with open(os.path.join(config.saveDir, config.manipastFile), "a+") as manipastFile:
+        manipastFile.write(manipast)
 
 if __name__ == '__main__':
     main()
