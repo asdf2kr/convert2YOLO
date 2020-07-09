@@ -28,7 +28,6 @@ def main():
     for file in files:
         fileName, fextension = os.path.splitext(file)
         if fextension == '.jpg' or fextension =='.png':
-            print("[info] file ", file)
             img = cv2.imread(os.path.join(config.imgDir, file), cv2.IMREAD_COLOR)
             height = float(img.shape[0])
             width = float(img.shape[1])
@@ -56,14 +55,13 @@ def main():
 
                 labelWidth = width * w
                 labelHeight = height * h
-                labelCx = cx * w
-                labelCy = cy * h
+                labelCx = width * cx
+                labelCy = height * cy
 
                 newCx = (dx + labelCx) / (width + (width * ratio))
                 newCy = (dy + labelCy) / (height + (height * ratio))
                 newW =  (w / (1 + ratio))
                 newH =  (h / (1 + ratio))
-
                 if min(newW, newH) > 0.015 or max(newW, newH) > 0.03:
                     writeStr2 += "{} {} {} {} {}\n".format(label, newCx, newCy, newW, newH)
 

@@ -8,6 +8,8 @@ import cv2
 import os
 import random
 import argparse
+
+labelList = ["car", "bus", "truck", "motor", "person"]
 def main():
     ''' Main function'''
     parser = argparse.ArgumentParser(description='Convert from datasets (COCO, COCO_YOLO, UA-DETRAC, MOT2020, Bdd100k, AIHub, CrowdHuman) to YOLO format.')
@@ -16,9 +18,9 @@ def main():
     # parser.add_argument('--img', type=str, help='select the target image.')
     parser.add_argument('--random', type=int, help='', default=0)
     config = parser.parse_args()
-    config.imgDir="E:\\DB\\copy\\aihub"
-    config.saveDir="E:\\DB\\copy\\save"
-    config.random = 5
+    #config.imgDir="E:\\DB\\copy\\aihub"
+    #config.saveDir="E:\\DB\\copy\\save"
+    #config.random = 5
 
     if not os.path.exists(config.saveDir):
         os.makedirs(config.saveDir)
@@ -27,7 +29,7 @@ def main():
         file = os.listdir(config.imgDir)
         while(config.random):
             rand = random.randrange(0, len(file))
-            if file[rand].split('.')[-1] == 'txt':
+            if not (file[rand].split('.')[-1] == 'jpg' or file[rand].split('.')[-1] == 'PNG'):
                 continue
 
             imgFile =file[rand]
@@ -57,6 +59,7 @@ def main():
                 bry = int(cy + (h / 2))
 
                 img = cv2.rectangle(img, (tlx, tly), (brx, bry), (0, 255, 0), 3)
+                cv2.putText(img, labelList[int(label)], (tlx, tly), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,0,255), 2, cv2.LINE_AA)
 
             cv2.imwrite(os.path.join(config.saveDir, imgFile), img)
             config.random -= 1

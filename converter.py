@@ -52,15 +52,9 @@ class Converter:
             for i, t in enumerate(temp):
                 if t:
                     self.config.imgNum[i] += 1
-            print('[Info] {}/{} image'.format(self.progressCnt, self.length))
-            print(self.config.imgNum)
-            print(self.config.classNum)
             self.progressCnt += 1
             printProgress(self.progressCnt, self.length, ' Analysis Progress: ', 'Complete')
-        print("[Info] total Image {}".format(self.length))
-        print(self.config.imgNum)
-        print(self.config.classNum)
-
+            
     def coordinateConvert(self, type, info):
         if type == "xyMinMax":
             width, height = info[0], info[1]
@@ -103,6 +97,7 @@ class Converter:
                 bboxCoordinate = self.coordinateConvert("xyMinMax", [imgWidth, imgHeight, xmin, ymin, xmax, ymax])
                 if cls in self.labelDict:
                     outputStr += "{} {} {} {} {}\n".format(self.labelDict[cls], bboxCoordinate[0], bboxCoordinate[1], bboxCoordinate[2], bboxCoordinate[3]) # using join
+                    break
             imgFile = os.path.join(path, key) #imgFile = ''.join(path.split('.')[:-1]) + fextension
             if outputStr != '' or self.config.negative:
                 if save:
@@ -118,6 +113,7 @@ class Converter:
                 else:
                     textFile = os.path.join(path, fileName + '.txt')
                     print("[Info]  textFile {} \noutputStr {}".format(textFile, outputStr))
+
                 if type == 'train':
                     self.trainList += "{}\n".format(os.path.join(copyDir, key))
                 else:
