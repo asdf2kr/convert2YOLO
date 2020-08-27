@@ -9,6 +9,8 @@ import sys
 import json
 import shutil
 import random
+import yaml
+import cv2
 from util import printProgress
 import xml.etree.ElementTree as ET
 # Common Data format
@@ -56,6 +58,161 @@ data
                                 }
                 }
 """
+import cv2
+class kitti:
+    def __init__(self, config):
+       self.currentDir = config.datasetsDir
+       self.imgDir = os.path.join(config.datasetsDir, 'image_2')
+       self.labelDir = os.path.join(config.datasetsDir, 'label_2')
+       # Car, Van, Truck, Tram, Pedestrian, Cyclist
+
+    def parse(self):
+        data = {}
+        type = 'valid' if random.randrange(0, 10) == 0 else 'train'
+        self.progressCnt = 0
+        labels = os.listdir(self.labelDir)
+        length = len(labels)
+        printProgress(self.progressCnt, length, ' Kitti Parsing Progress {}: '.format(type), 'Complete')
+
+        for label in labels:
+            fName, fextension = os.path.splitext(label)
+            filename = fName + ".png"
+            img = cv2.imread(os.path.join(self.imgDir, fName + ".png"))
+            imgHeight, imgWidth, _ = img.shape
+            size = {
+                "width": imgWidth,
+                "height": imgHeight
+            }
+
+            with open(os.path.join(self.labelDir, label), 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.split(' ')
+                    info = {
+                        "path": self.imgDir,
+                        "type": type,
+                        "ignore": None
+                    }
+
+                    bbox = {
+                        "xmin": int(float(line[4])),
+                        "ymin": int(float(line[5])),
+                        "xmax": int(float(line[6])),
+                        "ymax": int(float(line[7]))
+                    }
+
+                    bboxInfo = {
+                        "name": line[0],
+                        "bbox": bbox
+                    }
+
+                    if filename in data:
+                        obj_idx = data[filename]["objects"]["num_obj"] + 1
+                        data[filename]["objects"][str(obj_idx)] = bboxInfo
+                        data[filename]["objects"]["num_obj"] += 1
+                    else:
+                        obj = {
+                            "num_obj": 1,
+                            "1": bboxInfo
+                        }
+
+                        data[filename] = {
+                            "info": info,
+                            "size": size,
+                            "objects": obj
+                        }
+            self.progressCnt += 1
+            printProgress(self.progressCnt, length, ' Kitti Parsing Progress: {}'.format(type), 'Complete')
+        return data
+
+class visdrone:
+    def __init__(self, config):
+        self.currentDir = config.datasetsDir
+        self.trainImgDir = os.path.join(config.datasetsDir, 'VisDrone2019-DET-train', 'images')
+        self.valImgDir = os.path.join(config.datasetsDir, 'VisDrone2019-DET-val', 'images')
+        # self.trainLabelDir = os.path.join(config.datasetsDir, 'VisDrone2019-DET-train', 'annotations')
+        # self.valLabelDir = os.path.join(config.datasetsDir, 'VisDrone2019-DET-val', 'annotations')
+        self.labelFiles = [os.path.join(config.datasetsDir, 'VisDrone2019-DET-train', 'annotations'), os.path.join(config.datasetsDir, 'VisDrone2019-DET-val', 'annotations')]
+        self.objects = ["", "pedestrian", "people", "bicycle", "car", "van", "truck", "tricycle", "awning-tricycle", "bus", "motor", "others"]
+        self.progressCnt = 0
+
+        print("[Info] Load VisDrone2019 datasets.")
+
+    def parse(self):
+        data = {}
+        for labelFile in self.labelFiles:
+            if labelFile.find('train') != -1:
+                imgDir = self.trainImgDir
+                type = 'train'
+            else:
+                imgDir = self.valImgDir
+                type = 'valid'
+
+            self.progressCnt = 0
+            labels = os.listdir(labelFile)
+            length = len(labels)
+            printProgress(self.progressCnt, length, ' VisDrone Parsing Progress {}: '.format(type), 'Complete')
+
+            for label in labels:
+                fName, fextension = os.path.splitext(label)
+                filename = fName + ".jpg"
+                img = cv2.imread(os.path.join(imgDir, fName + ".jpg"))
+                imgHeight, imgWidth, _ = img.shape
+                size = {
+                    "width": imgWidth,
+                    "height": imgHeight
+                }
+                ignored_boxes = []
+                with open(os.path.join(labelFile, label), 'r') as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        line = line.split(',')
+                        if line[5] == "0":
+                            bbox = {
+                                "xmin": int(line[0]),
+                                "ymin": int(line[1]),
+                                "xmax": (int(line[2]) + int(line[0])),
+                                "ymax": (int(line[3]) + int(line[1]))
+                            }
+                            ignored_boxes.append(bbox)
+                    info = {
+                        "path": imgDir,
+                        "type": type,
+                        "ignore": ignored_boxes
+                    }
+                    for line in lines:
+                        line = line.split(',')
+                        if(line[5] == "0"):
+                            continue
+                        bbox = {
+                                "xmin": int(line[0]),
+                                "ymin": int(line[1]),
+                                "xmax": (int(line[2]) + int(line[0])),
+                                "ymax": (int(line[3]) + int(line[1]))
+                        }
+                        bboxInfo = {
+                            "name": self.objects[int(line[5])], # line[5] means classID
+                            "bbox": bbox
+                        }
+
+                        if filename in data:
+                            obj_idx = data[filename]["objects"]["num_obj"] + 1
+                            data[filename]["objects"][str(obj_idx)] = bboxInfo
+                            data[filename]["objects"]["num_obj"] += 1
+                        else:
+                            obj = {
+                                "num_obj": 1,
+                                "1": bboxInfo
+                            }
+                            data[filename] = {
+                                "info": info,
+                                "size": size,
+                                "objects": obj
+                            }
+
+                self.progressCnt += 1
+                printProgress(self.progressCnt, length, ' VisDrone Parsing Progress: {}'.format(type), 'Complete')
+        return data
 
 class coco:
     '''
@@ -80,7 +237,6 @@ class coco:
         self.labelDir = os.path.join(config.datasetsDir, 'annotations')
         self.labelFiles = [os.path.join(self.labelDir, 'instances_train2017.json'), os.path.join(self.labelDir, 'instances_val2017.json')]
         self.progressCnt = 0
-
         print("[Info] Load coco2017 datasets.")
 
     # https://www.immersivelimit.com/tutorials/create-coco-annotations-from-scratch
@@ -103,7 +259,8 @@ class coco:
 
             info = {
                 "path": imgDir,
-                "type": type
+                "type": type,
+                "ignore": None
             }
 
             for anno in json_data["annotations"]:
@@ -153,6 +310,92 @@ class coco:
                 self.progressCnt += 1
                 printProgress(self.progressCnt, length, ' COCO Parsing Progress: {}'.format(type), 'Complete')
         return data
+
+
+class testworks:
+    '''
+    # COCO Datasets format.
+        "annotations":[
+
+        {
+            "image"
+                height, width, name(imagenmae), id
+                "box"
+                    z_order(labelID), ybr, xbr, ytl, xyl, occluded, label
+        }
+        ]
+    '''
+    def __init__(self, config):
+        self.currentDir = config.datasetsDir
+        self.xmlFiles = []
+        self.progressCnt = 0
+        print("[Info] Load testworks datasets.")
+
+    # https://www.immersivelimit.com/tutorials/create-coco-annotations-from-scratch
+    def search(self, directory):
+        #try:
+        files = os.listdir(directory)
+        for file in files:
+            filePath = os.path.join(directory, file)
+            fileName, fextension = os.path.splitext(file)
+            if fextension == '.xml':
+                self.xmlFiles.append(filePath)
+
+    def parse(self):
+        data = {}
+        self.search(self.currentDir)
+        size = {
+            "width": float(1920.),
+            "height": float(1088.),
+        }
+
+        # length = len(json_data["annotations"])
+        # printProgress(self.progressCnt, length, ' COCO Parsing Progress {}: '.format(type), 'Complete')
+        print("Start")
+        for xml in self.xmlFiles:
+            imgDir, fextension = os.path.splitext(xml)
+            print("File {} Fext{}".format(imgDir, fextension))
+            doc = ET.parse(xml)
+            root = doc.getroot()
+            for img in root.iter('image'):
+                type = 'valid' if random.randrange(0, 10) == 0 else 'train'
+                imgName = img.attrib['name'].split('/')[-1]
+                file = os.path.join(imgDir, imgName)
+                info = {
+                    "path": imgDir,
+                    "type": type,
+                    "ignore": None
+                }
+                for box in img.findall('box'):
+                    bbox = {
+                        "xmin": float(box.attrib['xtl']),
+                        "ymin": float(box.attrib['ytl']),
+                        "xmax": float(box.attrib['xbr']),
+                        "ymax": float(box.attrib['ybr'])
+                    }
+                    bboxInfo = {
+                        "name": box.attrib['label'],
+                        "bbox": bbox
+                    }
+                    if imgName in data:
+                        obj_idx = data[imgName]["objects"]["num_obj"] + 1
+                        data[imgName]["objects"][str(obj_idx)] = bboxInfo
+                        data[imgName]["objects"]["num_obj"] += 1
+                    else:
+                        obj = {
+                            "num_obj": 1,
+                            "1": bboxInfo
+                        }
+                        data[imgName] = {
+                            "info": info,
+                            "size": size,
+                            "objects": obj
+                        }
+                    bbox = {}
+                    bboxInfo = {}
+            print("Done")
+        return data
+
 class bdd100k:
     def __init__(self, config):
 
@@ -201,7 +444,8 @@ class bdd100k:
                     '''
                     info = {
                         "path": imgDir,
-                        "type": type
+                        "type": type,
+                        "ignore": None
                     }
                     for label in image['labels']:
                         if not 'box2d' in label:
@@ -245,12 +489,13 @@ class mot:
 class detrac:
     def __init__(self, config):
         self.currentDir = config.datasetsDir
-        self.imgDir = os.path.join(self.currentDir, 'Insight-MVT_Annotation_Train')
+        self.imgRootDir = os.path.join(self.currentDir, 'Insight-MVT_Annotation_Train')
         self.labelDir = os.path.join(self.currentDir, 'label', 'for_detection', 'DETRAC-Train-Annotations-XML')
 
-        self.imgDir = []
+        self.imgDir = {}
         self.xmlFiles = []
         self.progressCnt = 0
+
     def search(self, directory):
         #try:
         files = os.listdir(directory)
@@ -262,43 +507,67 @@ class detrac:
                 fileName, fextension = os.path.splitext(file)
                 if fextension == '.xml':
                     self.xmlFiles.append(filePath)
-                    self.imgDir.append(os.path.join(self.currentDir, fileName))
+
+    def genImgDirDict(self, directory):
+        #try:
+        files = os.listdir(directory)
+        for file in files:
+            filePath = os.path.join(directory, file)
+            if os.path.isdir(filePath):
+                self.genImgDirDict(filePath)
+            else:
+                _, fextension = os.path.splitext(file)
+                if fextension == '.jpg' or fextension == '.png':
+                    newFile = directory.split('/')[-1]
+                    if(file[:3] == "img"):
+                        shutil.move(os.path.join(directory, file), os.path.join(directory, newFile + '-' + file))
+                        self.imgDir[newFile + '-' + file] = directory# filePath
+                    else: self.imgDir[file] = directory
+
 
     def parse(self):
         data = {}
         ig_bboxes = []
         self.search(self.labelDir)
+        self.genImgDirDict(self.imgRootDir)
+
         self.length = len(self.xmlFiles)
-        #printProgress(self.progressCnt, self.length, ' UA-Detrac Parsing Progress: ', 'Complete')
+        printProgress(self.progressCnt, self.length, ' UA-Detrac Parsing Progress: ', 'Complete')
         size = {
-            "width": float(960),
+            "width": float(960.),
             "height": float(540.),
         }
         for index, xml in enumerate(self.xmlFiles):
-
+            ignored_boxes = []
             doc = ET.parse(xml)
             root = doc.getroot()
-            for ig in root.findall('ignored_region'):
-                for box in ig.iter('box'):
-                    ig_bbox = {
+            xmlName, _ = os.path.splitext(xml.split('/')[-1])
+            for mask in root.iter('ignored_region'):
+                for box in mask.findall('box'):
+                    ignored_box = {
                         "xmin": float(box.attrib['left']),
                         "ymin": float(box.attrib['top']),
                         "xmax": float(box.attrib['left']) + float(box.attrib['width']),
                         "ymax": float(box.attrib['top']) + float(box.attrib['height'])
                     }
-                    ig_bboxes.append(ig_bbox)
+                    ignored_boxes.append(ignored_box)
 
             for img in root.iter('frame'):
 
                 imgId = img.attrib['num']
-                filename = os.path.join(self.imgDir[index],('img' + ('%05d' % int(img.attrib['num'])) + '.jpg')) # '%03d' % 1          # '001'
+                # filename = os.path.join(self.imgDir[index],('img' + ('%05d' % int(img.attrib['num'])) + '.jpg')) # '%03d' % 1          # '001'
 
+                filename = xmlName + ('-img' + ('%05d' % int(img.attrib['num'])) + '.jpg') # '%03d' % 1          # '001'
                 type = 'valid' if random.randrange(0, 10) == 0 else 'train'
+
                 info = {
-                    "path": self.imgDir[index],
-                    "type": type
+                    "path": self.imgDir[filename],
+                    "type": type,
+                    "ignore": ignored_boxes
                 }
                 for target in img.findall('target_list/target'):
+                    # target[0] : box
+                    # target[1] : attribute
                     bbox = {
                         "xmin": float(target[0].attrib['left']),
                         "ymin": float(target[0].attrib['top']),
@@ -336,14 +605,16 @@ class detrac:
 class crowdhuman:
     def __init__(self, config):
         self.config = config
+        self.length = 0
         self.fextension = '.jpg'
         print("[Info] Load crowdhuman dataset.")
         self.trainImgDir = os.path.join(self.config.datasetsDir, 'Images__train')
-        self.valImgDir = os.path.join(self.config.datasetsDir, 'Images__val')
+        self.valImgDir = os.path.join(self.config.datasetsDir, 'Images__val', 'Images')
         if not os.path.exists(self.trainImgDir):
             os.makedirs(self.trainImgDir)
 
     def parse(self):
+        data = {}
         files = os.listdir(self.config.datasetsDir)
 
         # Fine the annotation files.
@@ -353,19 +624,20 @@ class crowdhuman:
                 labelFiles.append(file)
 
         # Move the images from Images__train#num to Imgaes__train.
-        for trainFile in ["Images__train01", "Images__train02", "Images__train03"]:
-            currentDir = os.path.join(self.config.datasetsDir, trainFile)
-            files = os.listdir(currentDir)
+        if os.listdir(self.trainImgDir) == 0:
+            for trainFile in ["Images__train01", "Images__train02", "Images__train03"]:
+                currentDir = os.path.join(self.config.datasetsDir, trainFile)
+                files = os.listdir(currentDir)
 
-            self.progressCnt = 0
-            self.length = len(files)
-            printProgress(self.progressCnt, self.length, ' CrowdHuman {} moving Progress: '.format(trainFile), 'Complete')
-            for file in files:
-                shutil.move(os.path.join(currentDir, file), self.trainImgDir)
-                self.progressCnt += 1
+                self.progressCnt = 0
+                self.length = len(files)
                 printProgress(self.progressCnt, self.length, ' CrowdHuman {} moving Progress: '.format(trainFile), 'Complete')
-
-
+                for file in files:
+                    shutil.move(os.path.join(currentDir, file), self.trainImgDir)
+                    self.progressCnt += 1
+                    printProgress(self.progressCnt, self.length, ' CrowdHuman {} moving Progress: '.format(trainFile), 'Complete')
+        else:
+            print("[Info] {} has {} images ".format(self.trainImgDir, len(os.listdir(self.trainImgDir))))
         for labelFile in labelFiles:
             if labelFile.find('train') != -1:
                 imgDir = self.trainImgDir
@@ -374,15 +646,15 @@ class crowdhuman:
                 imgDir = self.valImgDir
                 type = 'valid'
 
-            with open(os.path.join(self.config.datasetsDir, labelFile)) as jsonFile:
+            with open(os.path.join(self.config.datasetsDir, labelFile)) as yamlFile:
+
                 print("[info] file ", os.path.join(self.config.datasetsDir, labelFile))
-                jsonData = json.load(jsonFile)
 
                 self.progressCnt = 0
-                self.length = len(jsonData)
+                self.length = len(os.listdir(imgDir))
                 printProgress(self.progressCnt, self.length, (' CrowdHuman ' + type + ' Parsing Progress: '), 'Complete')
-
-                for image in jsonData:
+                for yamlData in yamlFile:
+                    image = yaml.load(yamlData)
                     filename = image["ID"] + '.jpg'
                     img = cv2.imread(os.path.join(imgDir, filename))
                     size = {
@@ -391,7 +663,8 @@ class crowdhuman:
                     }
                     info = {
                         "path": imgDir,
-                        "type":type
+                        "type":type,
+                        "ignore": None
                     }
                     for label in image['gtboxes']:
                         if 'extra' in label and 'ignore' in label['extra'] and label['extra']['ignore'] == 1:
@@ -428,6 +701,7 @@ class crowdhuman:
 
                     self.progressCnt += 1
                     printProgress(self.progressCnt, self.length, (' CrowdHuman ' + type + ' Parsing Progress: '), 'Complete')
+
         return data
 
 class aihub:
@@ -489,7 +763,8 @@ class aihub:
                 }
                 info = {
                     "path": self.imgDir[filename],
-                    "type": type
+                    "type": type,
+                    "ignore": None
                 }
                 for box in image.iter('box'):
                     bbox = {
